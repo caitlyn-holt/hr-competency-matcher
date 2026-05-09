@@ -75,19 +75,36 @@ public class AppController {
     // 3. Добавление навыка кандидату (ТОЖЕ ИСПРАВЛЕНО)
     @PostMapping("/candidate/{id}/skills")
     public ResponseEntity<?> addSkill(@PathVariable Long id, @RequestBody CompetencyLevelDto dto) {
+        // 🔍 Логируем входные данные
+        System.out.println("=== ADD SKILL REQUEST ===");
+        System.out.println("Candidate ID: " + id);
+        System.out.println("Competency ID: " + dto.getId());
+        System.out.println("Level: " + dto.getLevel());
+
         User cand = userRepo.findById(id).orElse(null);
-        if (cand == null) return ResponseEntity.badRequest().body("User not found");
+        if (cand == null) {
+            System.out.println("ERROR: User not found");
+            return ResponseEntity.badRequest().body("User not found");
+        }
 
         Competency comp = compRepo.findById(dto.getId()).orElse(null);
-        if (comp == null) return ResponseEntity.badRequest().body("Competency not found");
+        if (comp == null) {
+            System.out.println("ERROR: Competency not found");
+            return ResponseEntity.badRequest().body("Competency not found");
+        }
 
         Optional<CandidateCompetency> existing = candCompRepo.findByCandidateAndCompetency(cand, comp);
         if (existing.isPresent()) {
+            System.out.println("UPDATING existing skill: old level=" + existing.get().getLevel() + ", new level=" + dto.getLevel());
             existing.get().setLevel(dto.getLevel());
-            candCompRepo.save(existing.get());
+            CandidateCompetency saved = candCompRepo.save(existing.get()); // ✅ Явно сохраняем
+            System.out.println("SAVED: " + saved.getId() + ", level=" + saved.getLevel());
         } else {
-            candCompRepo.save(new CandidateCompetency(null, cand, comp, dto.getLevel()));
+            System.out.println("CREATING new skill");
+            CandidateCompetency saved = candCompRepo.save(new CandidateCompetency(null, cand, comp, dto.getLevel()));
+            System.out.println("SAVED: " + saved.getId() + ", level=" + saved.getLevel());
         }
+
         return ResponseEntity.ok("Skill added");
     }
     // GET /api/candidate/{id}/skills - получить сохранённые навыки пользователя
