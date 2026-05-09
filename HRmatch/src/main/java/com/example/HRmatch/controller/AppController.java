@@ -6,7 +6,7 @@ import com.example.HRmatch.entity.*;
 import com.example.HRmatch.repository.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.transaction.annotation.Transactional;
 import jakarta.annotation.PostConstruct;
 import java.util.*;
 
@@ -119,6 +119,7 @@ public class AppController {
     }
     // 4. Алгоритм подбора
     @GetMapping("/match/{candidateId}")
+    @Transactional(readOnly = true)
     public ResponseEntity<?> findMatches(@PathVariable Long candidateId) {
         List<CandidateCompetency> skills = candCompRepo.findByCandidateId(candidateId);
         if (skills.isEmpty()) return ResponseEntity.ok(new ArrayList<>());
@@ -146,11 +147,16 @@ public class AppController {
             r.put("id", v.getId());
             r.put("title", v.getTitle());
             r.put("description", v.getDescription());
-            r.put("matchPercentage", Math.round(percent));
+            r.put("matchPercentage", percent);
             r.put("matchedSkills", count + "/" + v.getRequiredCompetencies().size());
             result.add(r);
         }
-        result.sort((a, b) -> Double.compare((Double)b.get("matchPercentage"), (Double)a.get("matchPercentage")));
+
+        result.sort((a, b) -> Double.compare(
+                (Double) b.get("matchPercentage"),
+                (Double) a.get("matchPercentage")
+        ));
+
         return ResponseEntity.ok(result);
     }
 
