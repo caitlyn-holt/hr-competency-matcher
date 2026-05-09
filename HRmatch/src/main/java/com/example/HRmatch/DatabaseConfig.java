@@ -34,9 +34,9 @@ public class DatabaseConfig {
         HikariDataSource ds = new HikariDataSource();
 
         if (usePostgres) {
-            // Формат с параметрами: надёжно работает с любыми паролями
+            // Формат с параметрами + отключение проверки сертификата
             String url = String.format(
-                    "jdbc:postgresql://%s:%d/%s?user=%s&password=%s&sslmode=require",
+                    "jdbc:postgresql://%s:%d/%s?user=%s&password=%s&ssl=true&sslfactory=org.postgresql.ssl.NonValidatingFactory",
                     dbHost, dbPort, dbName, dbUser, dbPassword
             );
             ds.setJdbcUrl(url);
