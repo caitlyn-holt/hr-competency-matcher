@@ -83,18 +83,28 @@ public class AppController {
 
         Optional<CandidateCompetency> existing = candCompRepo.findByCandidateAndCompetency(cand, comp);
         if (existing.isPresent()) {
-            existing.get().setLevel(dto.getLevel()); // Обновляем
+            existing.get().setLevel(dto.getLevel());
+            candCompRepo.save(existing.get());
         } else {
-            candCompRepo.save(new CandidateCompetency(null, cand, comp, dto.getLevel())); // Создаём
+            candCompRepo.save(new CandidateCompetency(null, cand, comp, dto.getLevel()));
         }
         return ResponseEntity.ok("Skill added");
     }
-
+    // GET /api/candidate/{id}/skills - получить сохранённые навыки пользователя
+    @GetMapping("/candidate/{id}/skills")
+    public ResponseEntity<?> getUserSkills(@PathVariable Long id) {
+        List<CandidateCompetency> skills = candCompRepo.findByCandidateId(id);
+        List<CompetencyLevelDto> result = new ArrayList<>();
+        for (CandidateCompetency cc : skills) {
+            result.add(new CompetencyLevelDto(cc.getCompetency().getId(), cc.getLevel()));
+        }
+        return ResponseEntity.ok(result);
+    }
     // 4. Алгоритм подбора
     @GetMapping("/match/{candidateId}")
     public ResponseEntity<?> findMatches(@PathVariable Long candidateId) {
         List<CandidateCompetency> skills = candCompRepo.findByCandidateId(candidateId);
-        if (skills.isEmpty()) return ResponseEntity.badRequest().body("No skills found");
+        if (skills.isEmpty()) return ResponseEntity.ok(new ArrayList<>());
 
         Map<Long, Integer> map = new HashMap<>();
         for (CandidateCompetency s : skills) map.put(s.getCompetency().getId(), s.getLevel());
