@@ -36,10 +36,18 @@ public class AppController {
     // 2. Создание вакансии (ИСПРАВЛЕНО: убрали try-catch, чтобы не было RollbackException)
     @PostMapping("/vacancies")
     public ResponseEntity<?> createVacancy(@RequestBody CreateVacancyRequest req) {
-        // Проверяем, существует ли HR
+        System.out.println("=== CREATE VACANCY REQUEST ===");
+        System.out.println("Title: " + req.getTitle());
+        System.out.println("CreatedById: " + req.getCreatedById());
+        System.out.println("Skills count: " + (req.getRequiredCompetencies() != null ? req.getRequiredCompetencies().size() : 0));
+
+        if (req.getCreatedById() == null) {
+            return ResponseEntity.badRequest().body("Missing createdById. Android app must send user ID.");
+        }
+
         User hr = userRepo.findById(req.getCreatedById()).orElse(null);
         if (hr == null) {
-            return ResponseEntity.badRequest().body("HR user not found");
+            return ResponseEntity.badRequest().body("HR user with id " + req.getCreatedById() + " not found");
         }
 
         Vacancy v = new Vacancy();
@@ -48,16 +56,19 @@ public class AppController {
         v.setCreatedBy(hr);
 
         List<VacancyCompetency> reqs = new ArrayList<>();
-        for (CompetencyLevelDto dto : req.getRequiredCompetencies()) {
-            Competency c = compRepo.findById(dto.getId()).orElse(null);
-            if (c != null) {
-                // Добавляем связь только если компетенция найдена
-                reqs.add(new VacancyCompetency(null, v, c, dto.getLevel()));
+        if (req.getRequiredCompetencies() != null) {
+            for (CompetencyLevelDto dto : req.getRequiredCompetencies()) {
+                if (dto.getId() != null) { // Проверка на null ID компетенции
+                    Competency c = compRepo.findById(dto.getId()).orElse(null);
+                    if (c != null) {
+                        reqs.add(new VacancyCompetency(null, v, c, dto.getLevel()));
+                    }
+                }
             }
         }
         v.setRequiredCompetencies(reqs);
 
-        vacRepo.save(v); // Cascade = ALL сохранит и вакансии, и связи
+        vacRepo.save(v);
         return ResponseEntity.ok(v);
     }
 
