@@ -36,7 +36,7 @@ public class DatabaseConfig {
         if (usePostgres) {
             // Формат с параметрами: надёжно работает с любыми паролями
             String url = String.format(
-                    "jdbc:postgresql://%s:%d/%s?user=%s&password=%s&ssl=true",
+                    "jdbc:postgresql://%s:%d/%s?user=%s&password=%s&sslmode=require",
                     dbHost, dbPort, dbName, dbUser, dbPassword
             );
             ds.setJdbcUrl(url);
