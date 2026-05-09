@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/HRmatch.iml" filepath="$PROJECT_DIR$/.idea/HRmatch.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.example.HRmatch.main.iml" filepath="$PROJECT_DIR$/.idea/modules/com.example.HRmatch.main.iml" />
     </modules>
   </component>
 </project>
