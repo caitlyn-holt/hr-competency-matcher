@@ -5,7 +5,6 @@ import com.example.HRmatch.CreateVacancyRequest;
 import com.example.HRmatch.entity.*;
 import com.example.HRmatch.repository.*;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.PostConstruct;
@@ -28,57 +27,60 @@ public class AppController {
         this.candCompRepo = candCompRepo;
     }
 
+    // 1. Список компетенций
     @GetMapping("/competencies")
     public ResponseEntity<?> getCompetencies() {
         return ResponseEntity.ok(compRepo.findAll());
     }
 
+    // 2. Создание вакансии (ИСПРАВЛЕНО: убрали try-catch, чтобы не было RollbackException)
     @PostMapping("/vacancies")
-    @Transactional
     public ResponseEntity<?> createVacancy(@RequestBody CreateVacancyRequest req) {
-        try {
-            User hr = userRepo.findById(req.getCreatedById()).orElseThrow();
+        // Проверяем, существует ли HR
+        User hr = userRepo.findById(req.getCreatedById()).orElse(null);
+        if (hr == null) {
+            return ResponseEntity.badRequest().body("HR user not found");
+        }
 
-            Vacancy v = new Vacancy();
-            v.setTitle(req.getTitle());
-            v.setDescription(req.getDescription());
-            v.setCreatedBy(hr);
+        Vacancy v = new Vacancy();
+        v.setTitle(req.getTitle());
+        v.setDescription(req.getDescription());
+        v.setCreatedBy(hr);
 
-            List<VacancyCompetency> reqs = new ArrayList<>();
-            for (CompetencyLevelDto dto : req.getRequiredCompetencies()) {
-                Competency c = compRepo.findById(dto.getId()).orElseThrow();
+        List<VacancyCompetency> reqs = new ArrayList<>();
+        for (CompetencyLevelDto dto : req.getRequiredCompetencies()) {
+            Competency c = compRepo.findById(dto.getId()).orElse(null);
+            if (c != null) {
+                // Добавляем связь только если компетенция найдена
                 reqs.add(new VacancyCompetency(null, v, c, dto.getLevel()));
             }
-            v.setRequiredCompetencies(reqs);
-
-            vacRepo.save(v);
-            return ResponseEntity.ok(v);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
         }
+        v.setRequiredCompetencies(reqs);
+
+        vacRepo.save(v); // Cascade = ALL сохранит и вакансии, и связи
+        return ResponseEntity.ok(v);
     }
 
+    // 3. Добавление навыка кандидату (ТОЖЕ ИСПРАВЛЕНО)
     @PostMapping("/candidate/{id}/skills")
-    @Transactional
     public ResponseEntity<?> addSkill(@PathVariable Long id, @RequestBody CompetencyLevelDto dto) {
-        try {
-            User cand = userRepo.findById(id).orElseThrow();
-            Competency comp = compRepo.findById(dto.getId()).orElseThrow();
+        User cand = userRepo.findById(id).orElse(null);
+        if (cand == null) return ResponseEntity.badRequest().body("User not found");
 
-            Optional<CandidateCompetency> existing = candCompRepo.findByCandidateAndCompetency(cand, comp);
-            if (existing.isPresent()) {
-                existing.get().setLevel(dto.getLevel());
-            } else {
-                candCompRepo.save(new CandidateCompetency(null, cand, comp, dto.getLevel()));
-            }
-            return ResponseEntity.ok("Skill added");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+        Competency comp = compRepo.findById(dto.getId()).orElse(null);
+        if (comp == null) return ResponseEntity.badRequest().body("Competency not found");
+
+        Optional<CandidateCompetency> existing = candCompRepo.findByCandidateAndCompetency(cand, comp);
+        if (existing.isPresent()) {
+            existing.get().setLevel(dto.getLevel()); // Обновляем
+        } else {
+            candCompRepo.save(new CandidateCompetency(null, cand, comp, dto.getLevel())); // Создаём
         }
+        return ResponseEntity.ok("Skill added");
     }
 
+    // 4. Алгоритм подбора
     @GetMapping("/match/{candidateId}")
-    @Transactional(readOnly = true)
     public ResponseEntity<?> findMatches(@PathVariable Long candidateId) {
         List<CandidateCompetency> skills = candCompRepo.findByCandidateId(candidateId);
         if (skills.isEmpty()) return ResponseEntity.badRequest().body("No skills found");
@@ -114,6 +116,7 @@ public class AppController {
         return ResponseEntity.ok(result);
     }
 
+    // 5. Авто-заполнение базы
     @PostConstruct
     public void init() {
         if (compRepo.count() == 0) {
