@@ -341,4 +341,48 @@ public class AppController {
             }
         }
     }
+
+    // ✅ Получить все отклики на вакансии конкретного HR
+    @GetMapping("/hr/{hrId}/applications")
+    public ResponseEntity<?> getHRApplications(@PathVariable Long hrId) {
+        // Находим все вакансии этого HR
+        List<Vacancy> myVacs = vacRepo.findByCreatedById(hrId);
+        List<Long> vacancyIds = myVacs.stream().map(Vacancy::getId).toList();
+
+        // Находим все отклики на эти вакансии
+        List<Application> allApps = appRepo.findByVacancyIdIn(vacancyIds);
+
+        // Формируем ответ с данными о кандидате и вакансии
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Application app : allApps) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("applicationId", app.getId());
+            m.put("vacancyId", app.getVacancy().getId());
+            m.put("vacancyTitle", app.getVacancy().getTitle());
+            m.put("candidateId", app.getCandidate().getId());
+            m.put("candidateName", app.getCandidate().getUsername());
+            m.put("message", app.getMessage());
+            m.put("status", app.getStatus());
+            result.add(m);
+        }
+        return ResponseEntity.ok(result);
+    }
+
+    // Обновить статус отклика
+    @PatchMapping("/applications/{id}/status")
+    public ResponseEntity<?> updateApplicationStatus(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request) {
+
+        Application app = appRepo.findById(id).orElse(null);
+        if (app == null) return ResponseEntity.notFound().build();
+
+        String newStatus = request.get("status");
+        if (newStatus != null && List.of("NEW", "VIEWED", "ACCEPTED", "REJECTED").contains(newStatus)) {
+            app.setStatus(newStatus);
+            appRepo.save(app);
+            return ResponseEntity.ok("Status updated");
+        }
+        return ResponseEntity.badRequest().body("Invalid status");
+    }
 }
