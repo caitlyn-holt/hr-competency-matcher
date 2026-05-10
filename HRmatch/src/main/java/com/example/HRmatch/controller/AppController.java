@@ -313,39 +313,25 @@ public class AppController {
     // Расширенная инициализация данных (Много компетенций)
     @PostConstruct
     public void init() {
+        // 🇷🇺 Русский список компетенций по отраслям
         String[] allComps = {
                 // IT & Разработка
-                "Java", "Python", "C++", "JavaScript", "TypeScript", "C#", "PHP", "Go",
-                "React", "Angular", "Vue.js", "Node.js", "Spring Boot", "Django",
-                "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis",
-                "Docker", "Kubernetes", "Git", "Linux", "Windows Server",
-                "1C:Предприятие", "Bitrix", "Yandex Cloud",
+                "Java", "Python", "JavaScript", "C++", "C#", "PHP", "Go", "Swift", "Kotlin",
+                "React", "Angular", "Vue.js", "Node.js", "Spring Boot", ".NET",
+                "SQL", "PostgreSQL", "MongoDB", "Redis", "Docker", "Kubernetes", "Git", "Linux",
 
-                // Дизайн & Креатив
-                "Figma", "Adobe Photoshop", "Adobe Illustrator", "Adobe After Effects",
-                "UI/UX Design", "Graphic Design", "Motion Design", "3D Modeling",
+                // Дизайн и Медиа
+                "Figma", "Adobe Photoshop", "Adobe Illustrator", "UI/UX Дизайн", "Графический дизайн",
+                "Видеомонтаж", "Копирайтинг", "SMM", "Таргетированная реклама",
 
-                // Маркетинг & Продажи
-                "Marketing", "SEO", "SMM", "Content Marketing", "Email Marketing",
-                "Google Analytics", "Yandex Metrica", "Target Advertising",
-                "Sales", "B2B Sales", "Negotiation", "CRM (Bitrix24, amoCRM)",
+                // Менеджмент и Бизнес
+                "Управление командой", "Проектный менеджмент", "Agile/Scrum", "Деловая коммуникация",
+                "Переговоры", "Продажи", "B2B Продажи", "Работа с клиентами",
+                "Финансовый анализ", "Бухгалтерия", "Логистика", "Документооборот",
 
-                // Управление & Бизнес
-                "Management", "Leadership", "Project Management", "Agile", "Scrum",
-                "Communication", "Teamwork", "Problem Solving", "Time Management",
-                "Accounting", "Finance", "HR Management", "Recruitment",
-
-                // Производство & Логистика
-                "Logistics", "Supply Chain", "Warehouse Management", "Quality Control",
-                "Technical Documentation", "GOST Standards", "ISO Standards",
-
-                // Здравоохранение & Образование
-                "Medical Knowledge", "Patient Care", "First Aid",
-                "Teaching", "Curriculum Development", "E-Learning",
-
-                // Языки & Коммуникации
-                "English (B2+)", "German", "Chinese",
-                "Public Speaking", "Business Writing", "Cross-cultural Communication"
+                // Общее и Языки
+                "Русский язык", "Английский язык", "Немецкий язык", "Китайский язык",
+                "Работа в команде", "Стрессоустойчивость", "Тайм-менеджмент"
         };
 
         for (String name : allComps) {
