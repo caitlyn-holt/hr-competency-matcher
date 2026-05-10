@@ -226,14 +226,18 @@ public class AppController {
     // Расширенная инициализация данных (Много компетенций)
     @PostConstruct
     public void init() {
-        if (compRepo.count() == 0) {
-            String[] comps = {
-                    "Java", "Python", "C++", "JavaScript", "React", "SQL", "Docker", "AWS",
-                    "Figma", "Adobe Photoshop", "UI/UX Design", "Marketing", "SEO",
-                    "Sales", "Accounting", "Management", "Leadership", "Communication"
-            };
-            for (String name : comps) {
+        // Список всех компетенций для добавления
+        String[] allComps = {
+                "Java", "Python", "C++", "JavaScript", "React", "SQL", "Docker", "AWS",
+                "Figma", "Adobe Photoshop", "UI/UX Design", "Marketing", "SEO",
+                "Sales", "Accounting", "Management", "Leadership", "Communication"
+        };
+
+        for (String name : allComps) {
+            // Проверяем, есть ли уже такая компетенция по имени
+            if (compRepo.findByName(name).isEmpty()) {
                 compRepo.save(new Competency(null, name));
+                System.out.println("Added competency: " + name);
             }
         }
     }

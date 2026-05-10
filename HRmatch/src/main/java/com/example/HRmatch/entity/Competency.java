@@ -13,5 +13,5 @@ public class Competency {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String name; // например: "Java", "SQL", "English"
+    private String name;
 }
