@@ -226,18 +226,45 @@ public class AppController {
     // Расширенная инициализация данных (Много компетенций)
     @PostConstruct
     public void init() {
-        // Список всех компетенций для добавления
         String[] allComps = {
-                "Java", "Python", "C++", "JavaScript", "React", "SQL", "Docker", "AWS",
-                "Figma", "Adobe Photoshop", "UI/UX Design", "Marketing", "SEO",
-                "Sales", "Accounting", "Management", "Leadership", "Communication"
+                // IT & Разработка
+                "Java", "Python", "C++", "JavaScript", "TypeScript", "C#", "PHP", "Go",
+                "React", "Angular", "Vue.js", "Node.js", "Spring Boot", "Django",
+                "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis",
+                "Docker", "Kubernetes", "Git", "Linux", "Windows Server",
+                "1C:Предприятие", "Bitrix", "Yandex Cloud",
+
+                // Дизайн & Креатив
+                "Figma", "Adobe Photoshop", "Adobe Illustrator", "Adobe After Effects",
+                "UI/UX Design", "Graphic Design", "Motion Design", "3D Modeling",
+
+                // Маркетинг & Продажи
+                "Marketing", "SEO", "SMM", "Content Marketing", "Email Marketing",
+                "Google Analytics", "Yandex Metrica", "Target Advertising",
+                "Sales", "B2B Sales", "Negotiation", "CRM (Bitrix24, amoCRM)",
+
+                // Управление & Бизнес
+                "Management", "Leadership", "Project Management", "Agile", "Scrum",
+                "Communication", "Teamwork", "Problem Solving", "Time Management",
+                "Accounting", "Finance", "HR Management", "Recruitment",
+
+                // Производство & Логистика
+                "Logistics", "Supply Chain", "Warehouse Management", "Quality Control",
+                "Technical Documentation", "GOST Standards", "ISO Standards",
+
+                // Здравоохранение & Образование
+                "Medical Knowledge", "Patient Care", "First Aid",
+                "Teaching", "Curriculum Development", "E-Learning",
+
+                // Языки & Коммуникации
+                "English (B2+)", "German", "Chinese",
+                "Public Speaking", "Business Writing", "Cross-cultural Communication"
         };
 
         for (String name : allComps) {
-            // Проверяем, есть ли уже такая компетенция по имени
             if (compRepo.findByName(name).isEmpty()) {
                 compRepo.save(new Competency(null, name));
-                System.out.println("Added competency: " + name);
+                System.out.println("Added: " + name);
             }
         }
     }
