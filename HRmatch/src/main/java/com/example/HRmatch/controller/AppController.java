@@ -1,5 +1,5 @@
 package com.example.HRmatch.controller;
-
+import com.example.HRmatch.ApplicationRequest;
 import com.example.HRmatch.CompetencyLevelDto;
 import com.example.HRmatch.CreateVacancyRequest;
 import com.example.HRmatch.entity.*;
@@ -18,13 +18,16 @@ public class AppController {
     private final CompetencyRepository compRepo;
     private final VacancyRepository vacRepo;
     private final CandidateCompetencyRepository candCompRepo;
+    private final ApplicationRepository appRepo; // Новый репозиторий
 
     public AppController(UserRepository userRepo, CompetencyRepository compRepo,
-                         VacancyRepository vacRepo, CandidateCompetencyRepository candCompRepo) {
+                         VacancyRepository vacRepo, CandidateCompetencyRepository candCompRepo,
+                         ApplicationRepository appRepo) {
         this.userRepo = userRepo;
         this.compRepo = compRepo;
         this.vacRepo = vacRepo;
         this.candCompRepo = candCompRepo;
+        this.appRepo = appRepo;
     }
 
     // 1. Список компетенций
@@ -75,7 +78,6 @@ public class AppController {
     // 3. Добавление навыка кандидату (ТОЖЕ ИСПРАВЛЕНО)
     @PostMapping("/candidate/{id}/skills")
     public ResponseEntity<?> addSkill(@PathVariable Long id, @RequestBody CompetencyLevelDto dto) {
-        // 🔍 Логируем входные данные
         System.out.println("=== ADD SKILL REQUEST ===");
         System.out.println("Candidate ID: " + id);
         System.out.println("Competency ID: " + dto.getId());
@@ -160,15 +162,79 @@ public class AppController {
         return ResponseEntity.ok(result);
     }
 
-    // 5. Авто-заполнение базы
+    // 2. Получить вакансии конкретного HR (Мои вакансии)
+    @GetMapping("/hr/vacancies/{hrId}")
+    public ResponseEntity<?> getMyVacancies(@PathVariable Long hrId) {
+        List<Vacancy> myVacs = vacRepo.findByCreatedById(hrId);
+        List<Map<String, Object>> safeList = new ArrayList<>();
+        for (Vacancy v : myVacs) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", v.getId());
+            m.put("title", v.getTitle());
+            m.put("description", v.getDescription());
+            safeList.add(m);
+        }
+        return ResponseEntity.ok(safeList);
+    }
+
+    // 3. Удалить вакансию
+    @DeleteMapping("/hr/vacancies/{id}")
+    public ResponseEntity<?> deleteVacancy(@PathVariable Long id) {
+        if (vacRepo.existsById(id)) {
+            vacRepo.deleteById(id);
+            return ResponseEntity.ok("Vacancy deleted");
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    // 4. Кандидат откликается на вакансию
+    @PostMapping("/applications")
+    public ResponseEntity<?> apply(@RequestBody ApplicationRequest req) {
+        Vacancy v = vacRepo.findById(req.getVacancyId()).orElse(null);
+        User c = userRepo.findById(req.getCandidateId()).orElse(null);
+
+        if (v == null || c == null) return ResponseEntity.badRequest().body("User or Vacancy not found");
+
+        Application app = new Application();
+        app.setVacancy(v);
+        app.setCandidate(c);
+        app.setStatus("PENDING");
+        app.setMessage(req.getMessage());
+        appRepo.save(app);
+
+        return ResponseEntity.ok("Application sent successfully!");
+    }
+
+    // 5. HR смотрит отклики на свою вакансию
+    @GetMapping("/hr/vacancies/{vacancyId}/applications")
+    public ResponseEntity<?> getApplications(@PathVariable Long vacancyId) {
+        List<Application> apps = appRepo.findByVacancyId(vacancyId);
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Application app : apps) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", app.getId());
+            m.put("candidateName", app.getCandidate().getUsername());
+            m.put("candidateId", app.getCandidate().getId());
+            m.put("status", app.getStatus());
+            m.put("message", app.getMessage());
+            result.add(m);
+        }
+        return ResponseEntity.ok(result);
+    }
+
+    // Расширенная инициализация данных (Много компетенций)
     @PostConstruct
     public void init() {
         if (compRepo.count() == 0) {
-            compRepo.save(new Competency(null, "Java"));
-            compRepo.save(new Competency(null, "SQL"));
-            compRepo.save(new Competency(null, "Python"));
-            compRepo.save(new Competency(null, "English"));
-            compRepo.save(new Competency(null, "Management"));
+            String[] comps = {
+                    "Java", "Python", "C++", "JavaScript", "React", "SQL", "Docker", "AWS",
+                    "Figma", "Adobe Photoshop", "UI/UX Design", "Marketing", "SEO",
+                    "Sales", "Accounting", "Management", "Leadership", "Communication"
+            };
+            for (String name : comps) {
+                compRepo.save(new Competency(null, name));
+            }
         }
     }
 }
