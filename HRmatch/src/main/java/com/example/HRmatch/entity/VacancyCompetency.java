@@ -23,5 +23,14 @@ public class VacancyCompetency {
     @ManyToOne
     private Competency competency;
 
-    private Integer requiredLevel;
+    private Integer requiredLevel; // 1-5
+
+    // Вес значимости (0.0 - 1.0)
+    private Double weight;
+
+    // Критическая компетенция
+    private Boolean isCritical;
+
+    // Минимальный порог для критической компетенции
+    private Integer minRequiredLevel;
 }
