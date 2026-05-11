@@ -39,11 +39,6 @@ public class AppController {
     // 2. Создание вакансии (ИСПРАВЛЕНО: убрали try-catch, чтобы не было RollbackException)
     @PostMapping("/vacancies")
     public ResponseEntity<?> createVacancy(@RequestBody CreateVacancyRequest req) {
-        System.out.println("=== CREATE VACANCY REQUEST ===");
-        System.out.println("Title: " + req.getTitle());
-        System.out.println("CreatedById: " + req.getCreatedById());
-        System.out.println("Skills count: " + (req.getRequiredCompetencies() != null ? req.getRequiredCompetencies().size() : 0));
-
         // Проверка 1: createdById не должен быть null
         if (req.getCreatedById() == null) {
             return ResponseEntity.badRequest().body("Missing createdById. Android app must send user ID.");
@@ -58,6 +53,9 @@ public class AppController {
         v.setTitle(req.getTitle());
         v.setDescription(req.getDescription());
         v.setCreatedBy(hr);
+        v.setSalaryFrom(req.getSalaryFrom());
+        v.setSalaryTo(req.getSalaryTo());
+        v.setExperienceLevel(req.getExperienceLevel());
 
         List<VacancyCompetency> reqs = new ArrayList<>();
         double weightSum = 0.0;
@@ -313,36 +311,30 @@ public class AppController {
     // Расширенная инициализация данных (Много компетенций)
     @PostConstruct
     public void init() {
-        // 🇷🇺 Русский список компетенций по отраслям
-        String[] allComps = {
-                // IT & Разработка
-                "Java", "Python", "JavaScript", "C++", "C#", "PHP", "Go", "Swift", "Kotlin",
-                "React", "Angular", "Vue.js", "Node.js", "Spring Boot", ".NET",
-                "SQL", "PostgreSQL", "MongoDB", "Redis", "Docker", "Kubernetes", "Git", "Linux",
+        if (compRepo.count() == 0) {
+            // Формат: { Имя, Категория }
+            String[][] data = {
+                    // IT
+                    {"Java", "IT"}, {"Python", "IT"}, {"SQL", "IT"}, {"Docker", "IT"}, {"Git", "IT"},
+                    // Менеджмент
+                    {"Project Management", "Management"}, {"Agile", "Management"}, {"Leadership", "Management"},
+                    // HR
+                    {"Recruitment", "HR"}, {"Interviewing", "HR"}, {"HR Branding", "HR"},
+                    // Продажи
+                    {"B2B Sales", "Sales"}, {"Negotiation", "Sales"}, {"CRM", "Sales"},
+                    // Дизайн
+                    {"Figma", "Design"}, {"UI/UX", "Design"}, {"Photoshop", "Design"}
+            };
 
-                // Дизайн и Медиа
-                "Figma", "Adobe Photoshop", "Adobe Illustrator", "UI/UX Дизайн", "Графический дизайн",
-                "Видеомонтаж", "Копирайтинг", "SMM", "Таргетированная реклама",
-
-                // Менеджмент и Бизнес
-                "Управление командой", "Проектный менеджмент", "Agile/Scrum", "Деловая коммуникация",
-                "Переговоры", "Продажи", "B2B Продажи", "Работа с клиентами",
-                "Финансовый анализ", "Бухгалтерия", "Логистика", "Документооборот",
-
-                // Общее и Языки
-                "Русский язык", "Английский язык", "Немецкий язык", "Китайский язык",
-                "Работа в команде", "Стрессоустойчивость", "Тайм-менеджмент"
-        };
-
-        for (String name : allComps) {
-            if (compRepo.findByName(name).isEmpty()) {
-                compRepo.save(new Competency(null, name));
-                System.out.println("Added: " + name);
+            for (String[] item : data) {
+                Competency comp = new Competency();
+                comp.setName(item[0]);
+                comp.setCategory(item[1]);
+                compRepo.save(comp);
             }
         }
     }
 
-    // ✅ Получить все отклики на вакансии конкретного HR
     @GetMapping("/hr/{hrId}/applications")
     public ResponseEntity<?> getHRApplications(@PathVariable Long hrId) {
         // Находим все вакансии этого HR
@@ -352,22 +344,65 @@ public class AppController {
         // Находим все отклики на эти вакансии
         List<Application> allApps = appRepo.findByVacancyIdIn(vacancyIds);
 
-        // Формируем ответ с данными о кандидате и вакансии
         List<Map<String, Object>> result = new ArrayList<>();
         for (Application app : allApps) {
+            User candidate = app.getCandidate();
+            Vacancy vacancy = app.getVacancy();
+
+            // Получаем навыки кандидата
+            List<CandidateCompetency> candidateSkills = candCompRepo.findByCandidateId(candidate.getId());
+            List<Map<String, Object>> skills = new ArrayList<>();
+            for (CandidateCompetency cc : candidateSkills) {
+                Map<String, Object> s = new HashMap<>();
+                s.put("name", cc.getCompetency().getName());
+                s.put("level", cc.getLevel());
+                skills.add(s);
+            }
+
+            // Считаем процент соответствия (упрощённо)
+            int matchPercent = calculateMatchPercent(candidateSkills, vacancy.getRequiredCompetencies());
+
             Map<String, Object> m = new HashMap<>();
             m.put("applicationId", app.getId());
-            m.put("vacancyId", app.getVacancy().getId());
-            m.put("vacancyTitle", app.getVacancy().getTitle());
-            m.put("candidateId", app.getCandidate().getId());
-            m.put("candidateName", app.getCandidate().getUsername());
+            m.put("vacancyId", vacancy.getId());
+            m.put("vacancyTitle", vacancy.getTitle());
+
+            // ✅ Полные данные кандидата
+            m.put("candidateId", candidate.getId());
+            m.put("candidateName", candidate.getUsername());
+            m.put("candidateEmail", candidate.getEmail()); // ✅ Email
+            m.put("candidateSkills", skills); // ✅ Навыки
+            m.put("matchPercent", matchPercent); // ✅ Процент совпадения
+
             m.put("message", app.getMessage());
             m.put("status", app.getStatus());
+            m.put("appliedAt", app.getAppliedAt());
+
             result.add(m);
         }
         return ResponseEntity.ok(result);
     }
 
+    // Вспомогательный метод для расчёта % совпадения
+    private int calculateMatchPercent(List<CandidateCompetency> candidateSkills, List<VacancyCompetency> required) {
+        if (required == null || required.isEmpty()) return 0;
+
+        Map<Long, Integer> candidateMap = new HashMap<>();
+        for (CandidateCompetency cs : candidateSkills) {
+            candidateMap.put(cs.getCompetency().getId(), cs.getLevel());
+        }
+
+        double total = 0, score = 0;
+        for (VacancyCompetency req : required) {
+            total += req.getRequiredLevel();
+            Integer actual = candidateMap.get(req.getCompetency().getId());
+            if (actual != null) {
+                score += Math.min(actual, req.getRequiredLevel());
+            }
+        }
+
+        return total > 0 ? (int) Math.round((score / total) * 100) : 0;
+    }
     // Обновить статус отклика
     @PatchMapping("/applications/{id}/status")
     public ResponseEntity<?> updateApplicationStatus(

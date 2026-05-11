@@ -13,5 +13,6 @@ public class Competency {
     private Long id;
 
     @Column(nullable = false, unique = true)
+    private String category;
     private String name;
 }

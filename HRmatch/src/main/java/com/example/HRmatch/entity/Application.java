@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "applications")
@@ -26,4 +27,11 @@ public class Application {
 
     private String status;
     private String message;
+
+    private LocalDateTime appliedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.appliedAt = LocalDateTime.now();
+    }
 }
