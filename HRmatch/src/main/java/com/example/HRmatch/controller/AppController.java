@@ -308,7 +308,6 @@ public class AppController {
         return ResponseEntity.ok(result);
     }
 
-    // Расширенная инициализация данных (Много компетенций)
     @PostConstruct
     public void init() {
         if (compRepo.count() == 0) {
@@ -327,10 +326,13 @@ public class AppController {
             };
 
             for (String[] item : data) {
-                Competency comp = new Competency();
-                comp.setName(item[0]);
-                comp.setCategory(item[1]);
-                compRepo.save(comp);
+                if (compRepo.findByName(item[0]).isEmpty()) {
+                    Competency comp = new Competency();
+                    comp.setName(item[0]);
+                    comp.setCategory(item[1]);
+                    compRepo.save(comp);
+                    System.out.println("Added: " + item[0]);
+                }
             }
         }
     }
@@ -367,12 +369,11 @@ public class AppController {
             m.put("vacancyId", vacancy.getId());
             m.put("vacancyTitle", vacancy.getTitle());
 
-            // ✅ Полные данные кандидата
             m.put("candidateId", candidate.getId());
             m.put("candidateName", candidate.getUsername());
-            m.put("candidateEmail", candidate.getEmail()); // ✅ Email
-            m.put("candidateSkills", skills); // ✅ Навыки
-            m.put("matchPercent", matchPercent); // ✅ Процент совпадения
+            m.put("candidateEmail", candidate.getEmail());
+            m.put("candidateSkills", skills);
+            m.put("matchPercent", matchPercent);
 
             m.put("message", app.getMessage());
             m.put("status", app.getStatus());
