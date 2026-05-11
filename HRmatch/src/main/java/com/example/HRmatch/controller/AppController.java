@@ -310,31 +310,24 @@ public class AppController {
 
     @PostConstruct
     public void init() {
+        String[][] data = {
+                {"Java", "IT"}, {"Python", "IT"}, {"SQL", "IT"}, {"Docker", "IT"}, {"Git", "IT"},
+                {"Project Management", "Management"}, {"Agile", "Management"}, {"Leadership", "Management"},
+                {"Recruitment", "HR"}, {"Interviewing", "HR"}, {"HR Branding", "HR"},
+                {"B2B Sales", "Sales"}, {"Negotiation", "Sales"}, {"CRM", "Sales"},
+                {"Figma", "Design"}, {"UI/UX", "Design"}, {"Photoshop", "Design"}
+        };
 
-            // Формат: { Имя, Категория }
-            String[][] data = {
-                    // IT
-                    {"Java", "IT"}, {"Python", "IT"}, {"SQL", "IT"}, {"Docker", "IT"}, {"Git", "IT"},
-                    // Менеджмент
-                    {"Project Management", "Management"}, {"Agile", "Management"}, {"Leadership", "Management"},
-                    // HR
-                    {"Recruitment", "HR"}, {"Interviewing", "HR"}, {"HR Branding", "HR"},
-                    // Продажи
-                    {"B2B Sales", "Sales"}, {"Negotiation", "Sales"}, {"CRM", "Sales"},
-                    // Дизайн
-                    {"Figma", "Design"}, {"UI/UX", "Design"}, {"Photoshop", "Design"}
-            };
-
-            for (String[] item : data) {
-                if (compRepo.findByName(item[0]).isEmpty()) {
-                    Competency comp = new Competency();
-                    comp.setName(item[0]);
-                    comp.setCategory(item[1]);
-                    compRepo.save(comp);
-                    System.out.println("Added: " + item[0]);
-                }
+        for (String[] item : data) {
+            // Проверяем, нет ли уже такой компетенции по имени
+            if (compRepo.findByName(item[0]).isEmpty()) {
+                Competency comp = new Competency();
+                comp.setName(item[0]);
+                comp.setCategory(item[1]);
+                compRepo.save(comp);
+                System.out.println("Added: " + item[0]);
             }
-
+        }
     }
 
     @GetMapping("/hr/{hrId}/applications")

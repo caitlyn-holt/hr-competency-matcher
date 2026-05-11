@@ -11,6 +11,6 @@ import lombok.AllArgsConstructor;
 public class Competency {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String category;
     private String name;
+    private String category;
 }
