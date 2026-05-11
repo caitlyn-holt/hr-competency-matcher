@@ -11,8 +11,6 @@ import lombok.AllArgsConstructor;
 public class Competency {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(nullable = false, unique = true)
     private String category;
     private String name;
 }
