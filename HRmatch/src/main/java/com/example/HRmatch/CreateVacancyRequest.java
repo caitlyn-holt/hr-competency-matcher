@@ -16,5 +16,5 @@ public class CreateVacancyRequest {
 
     private Integer salaryFrom;
     private Integer salaryTo;
-    private String experienceLevel; // NO_EXPERIENCE, ONE_TO_THREE, THREE_TO_SIX, MORE_THAN_SIX
+    private String experienceLevel;
 }
