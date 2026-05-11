@@ -310,7 +310,7 @@ public class AppController {
 
     @PostConstruct
     public void init() {
-        if (compRepo.count() == 0) {
+
             // Формат: { Имя, Категория }
             String[][] data = {
                     // IT
@@ -334,7 +334,7 @@ public class AppController {
                     System.out.println("Added: " + item[0]);
                 }
             }
-        }
+
     }
 
     @GetMapping("/hr/{hrId}/applications")
