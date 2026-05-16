@@ -42,7 +42,6 @@ public class AppController {
     // 2. Создание вакансии
     @PostMapping("/vacancies")
     public ResponseEntity<?> createVacancy(@RequestBody CreateVacancyRequest req) {
-        // Проверка: createdById не должен быть null
         if (req.getCreatedById() == null) {
             return ResponseEntity.badRequest().body("Missing createdById. Android app must send user ID.");
         }
@@ -79,12 +78,10 @@ public class AppController {
                         vc.setCompetency(c);
                         vc.setRequiredLevel(dto.getLevel());
 
-                        // Вес: используем переданный или вычисляем по умолчанию
                         Double weight = dto.getWeight();
                         vc.setWeight(weight != null ? weight : 1.0);
                         weightSum += vc.getWeight();
 
-                        // Критическая компетенция
                         vc.setIsCritical(dto.getIsCritical() != null ? dto.getIsCritical() : false);
                         vc.setMinRequiredLevel(dto.getMinRequiredLevel());
 
@@ -94,7 +91,6 @@ public class AppController {
             }
         }
 
-        // Валидация весов (допускаем небольшую погрешность)
         if (Math.abs(weightSum - 1.0) > 0.01 && !reqs.isEmpty()) {
             return ResponseEntity.badRequest()
                     .body("Sum of competency weights must be 1.0 (current: " + weightSum + "). Please normalize weights.");
@@ -130,12 +126,10 @@ public class AppController {
         return ResponseEntity.ok("Skill added");
     }
 
-    // GET /api/candidate/{id}/skills - получить сохранённые навыки
     @GetMapping("/candidate/{id}/skills")
     public ResponseEntity<?> getUserSkills(@PathVariable Long id) {
         List<CandidateCompetency> skills = candCompRepo.findByCandidateId(id);
         List<CompetencyLevelDto> result = new ArrayList<>();
-
         for (CandidateCompetency cc : skills) {
             CompetencyLevelDto dto = new CompetencyLevelDto();
             dto.setId(cc.getCompetency().getId());
@@ -214,7 +208,6 @@ public class AppController {
                 matchLevel = "LOW";
             }
 
-            // Собираем ответ
             Map<String, Object> r = new HashMap<>();
             r.put("id", v.getId());
             r.put("title", v.getTitle());
@@ -223,7 +216,7 @@ public class AppController {
             r.put("matchLevel", matchLevel);
             r.put("breakdown", breakdown);
 
-            // ✅ Добавляем компанию, если есть
+            // ✅ Добавляем компанию в ответ
             if (v.getCompany() != null) {
                 Map<String, Object> companyData = new HashMap<>();
                 companyData.put("name", v.getCompany().getName());
@@ -231,11 +224,9 @@ public class AppController {
                 companyData.put("location", v.getCompany().getLocation());
                 r.put("company", companyData);
             }
-
             result.add(r);
         }
 
-        // Сортировка по убыванию процента
         result.sort((a, b) -> Integer.compare(
                 (Integer) b.get("matchPercentage"),
                 (Integer) a.get("matchPercentage")
@@ -255,7 +246,6 @@ public class AppController {
             m.put("title", v.getTitle());
             m.put("description", v.getDescription());
 
-            // ✅ Добавляем компанию для списка "Мои вакансии"
             if (v.getCompany() != null) {
                 Map<String, Object> companyData = new HashMap<>();
                 companyData.put("name", v.getCompany().getName());
@@ -283,7 +273,6 @@ public class AppController {
     public ResponseEntity<?> apply(@RequestBody ApplicationRequest req) {
         Vacancy v = vacRepo.findById(req.getVacancyId()).orElse(null);
         User c = userRepo.findById(req.getCandidateId()).orElse(null);
-
         if (v == null || c == null) return ResponseEntity.badRequest().body("User or Vacancy not found");
 
         Application app = new Application();
@@ -292,7 +281,6 @@ public class AppController {
         app.setStatus("PENDING");
         app.setMessage(req.getMessage());
         appRepo.save(app);
-
         return ResponseEntity.ok("Application sent successfully!");
     }
 
@@ -300,7 +288,6 @@ public class AppController {
     @GetMapping("/hr/vacancies/{vacancyId}/applications")
     public ResponseEntity<?> getApplications(@PathVariable Long vacancyId) {
         List<Application> apps = appRepo.findByVacancyId(vacancyId);
-
         List<Map<String, Object>> result = new ArrayList<>();
         for (Application app : apps) {
             Map<String, Object> m = new HashMap<>();
@@ -314,7 +301,7 @@ public class AppController {
         return ResponseEntity.ok(result);
     }
 
-    // 9. Инициализация данных (компетенции с категориями)
+    // 9. Инициализация данных
     @PostConstruct
     public void init() {
         String[][] data = {
@@ -324,7 +311,6 @@ public class AppController {
                 {"B2B Sales", "Sales"}, {"Negotiation", "Sales"}, {"CRM", "Sales"},
                 {"Figma", "Design"}, {"UI/UX", "Design"}, {"Photoshop", "Design"}
         };
-
         for (String[] item : data) {
             if (compRepo.findByName(item[0]).isEmpty()) {
                 Competency comp = new Competency();
@@ -371,21 +357,17 @@ public class AppController {
             m.put("message", app.getMessage());
             m.put("status", app.getStatus());
             m.put("appliedAt", app.getAppliedAt());
-
             result.add(m);
         }
         return ResponseEntity.ok(result);
     }
 
-    // Вспомогательный метод для расчёта % совпадения
     private int calculateMatchPercent(List<CandidateCompetency> candidateSkills, List<VacancyCompetency> required) {
         if (required == null || required.isEmpty()) return 0;
-
         Map<Long, Integer> candidateMap = new HashMap<>();
         for (CandidateCompetency cs : candidateSkills) {
             candidateMap.put(cs.getCompetency().getId(), cs.getLevel());
         }
-
         double total = 0, score = 0;
         for (VacancyCompetency req : required) {
             total += req.getRequiredLevel();
@@ -394,19 +376,14 @@ public class AppController {
                 score += Math.min(actual, req.getRequiredLevel());
             }
         }
-
         return total > 0 ? (int) Math.round((score / total) * 100) : 0;
     }
 
     // 11. Обновить статус отклика
     @PatchMapping("/applications/{id}/status")
-    public ResponseEntity<?> updateApplicationStatus(
-            @PathVariable Long id,
-            @RequestBody Map<String, String> request) {
-
+    public ResponseEntity<?> updateApplicationStatus(@PathVariable Long id, @RequestBody Map<String, String> request) {
         Application app = appRepo.findById(id).orElse(null);
         if (app == null) return ResponseEntity.notFound().build();
-
         String newStatus = request.get("status");
         if (newStatus != null && List.of("NEW", "VIEWED", "ACCEPTED", "REJECTED").contains(newStatus)) {
             app.setStatus(newStatus);
