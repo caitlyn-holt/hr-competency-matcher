@@ -9,7 +9,9 @@ import java.util.List;
 
 @Entity
 @Table(name = "vacancies")
-@Data @NoArgsConstructor @AllArgsConstructor
+@Data // Lombok: автоматически создаёт геттеры/сеттеры
+@NoArgsConstructor
+@AllArgsConstructor
 public class Vacancy {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,16 +20,23 @@ public class Vacancy {
     private String title;
     private String description;
 
-    private Integer salaryFrom;   // Зарплата от
-    private Integer salaryTo;     // Зарплата до
-
+    // Поля зарплаты и опыта
+    private Integer salaryFrom;
+    private Integer salaryTo;
     private String experienceLevel;
 
-    @ManyToOne
+    // Вакансия привязана к Компании
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id") // Колонка в таблице БД
+    private Company company;
+
+    // Вакансия создана Пользователем (HR)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_id")
-    @JsonIgnore
+    @JsonIgnore // Игнорируем при выводе JSON, чтобы не было зацикливания
     private User createdBy;
 
+    // Вакансия имеет список требований (Компетенций)
     @OneToMany(mappedBy = "vacancy", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<VacancyCompetency> requiredCompetencies;
 }

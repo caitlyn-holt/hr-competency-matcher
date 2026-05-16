@@ -1,4 +1,5 @@
 package com.example.HRmatch.controller;
+
 import com.example.HRmatch.ApplicationRequest;
 import com.example.HRmatch.CompetencyLevelDto;
 import com.example.HRmatch.CreateVacancyRequest;
@@ -18,16 +19,18 @@ public class AppController {
     private final CompetencyRepository compRepo;
     private final VacancyRepository vacRepo;
     private final CandidateCompetencyRepository candCompRepo;
-    private final ApplicationRepository appRepo; // Новый репозиторий
+    private final ApplicationRepository appRepo;
+    private final CompanyRepository companyRepo;
 
     public AppController(UserRepository userRepo, CompetencyRepository compRepo,
                          VacancyRepository vacRepo, CandidateCompetencyRepository candCompRepo,
-                         ApplicationRepository appRepo) {
+                         ApplicationRepository appRepo, CompanyRepository companyRepo) {
         this.userRepo = userRepo;
         this.compRepo = compRepo;
         this.vacRepo = vacRepo;
         this.candCompRepo = candCompRepo;
         this.appRepo = appRepo;
+        this.companyRepo = companyRepo;
     }
 
     // 1. Список компетенций
@@ -36,10 +39,10 @@ public class AppController {
         return ResponseEntity.ok(compRepo.findAll());
     }
 
-    // 2. Создание вакансии (ИСПРАВЛЕНО: убрали try-catch, чтобы не было RollbackException)
+    // 2. Создание вакансии
     @PostMapping("/vacancies")
     public ResponseEntity<?> createVacancy(@RequestBody CreateVacancyRequest req) {
-        // Проверка 1: createdById не должен быть null
+        // Проверка: createdById не должен быть null
         if (req.getCreatedById() == null) {
             return ResponseEntity.badRequest().body("Missing createdById. Android app must send user ID.");
         }
@@ -53,6 +56,12 @@ public class AppController {
         v.setTitle(req.getTitle());
         v.setDescription(req.getDescription());
         v.setCreatedBy(hr);
+
+        // ✅ ПРИВЯЗЫВАЕМ КОМПАНИЮ К ВАКАНСИИ
+        if (hr.getCompany() != null) {
+            v.setCompany(hr.getCompany());
+        }
+
         v.setSalaryFrom(req.getSalaryFrom());
         v.setSalaryTo(req.getSalaryTo());
         v.setExperienceLevel(req.getExperienceLevel());
@@ -65,18 +74,17 @@ public class AppController {
                 if (dto.getId() != null) {
                     Competency c = compRepo.findById(dto.getId()).orElse(null);
                     if (c != null) {
-                        // Создаём связь с учётом весов и критичности (согласно отчёту)
                         VacancyCompetency vc = new VacancyCompetency();
                         vc.setVacancy(v);
                         vc.setCompetency(c);
                         vc.setRequiredLevel(dto.getLevel());
 
-                        // Вес по умолчанию 1.0 / количество, если не задан
+                        // Вес: используем переданный или вычисляем по умолчанию
                         Double weight = dto.getWeight();
                         vc.setWeight(weight != null ? weight : 1.0);
                         weightSum += vc.getWeight();
 
-                        // Критическая компетенция (п. 4.5 отчёта)
+                        // Критическая компетенция
                         vc.setIsCritical(dto.getIsCritical() != null ? dto.getIsCritical() : false);
                         vc.setMinRequiredLevel(dto.getMinRequiredLevel());
 
@@ -86,54 +94,43 @@ public class AppController {
             }
         }
 
-        // Валидация: сумма весов должна быть ~1.0 (п. 4.2 отчёта)
-        // Допускаем небольшую погрешность из-за float-арифметики
+        // Валидация весов (допускаем небольшую погрешность)
         if (Math.abs(weightSum - 1.0) > 0.01 && !reqs.isEmpty()) {
             return ResponseEntity.badRequest()
                     .body("Sum of competency weights must be 1.0 (current: " + weightSum + "). Please normalize weights.");
         }
 
         v.setRequiredCompetencies(reqs);
-        vacRepo.save(v); // Cascade = ALL сохранит и связи
+        vacRepo.save(v);
 
         return ResponseEntity.ok(v);
     }
 
-    // 3. Добавление навыка кандидату (ТОЖЕ ИСПРАВЛЕНО)
+    // 3. Добавление навыка кандидату
     @PostMapping("/candidate/{id}/skills")
     public ResponseEntity<?> addSkill(@PathVariable Long id, @RequestBody CompetencyLevelDto dto) {
-        System.out.println("=== ADD SKILL REQUEST ===");
-        System.out.println("Candidate ID: " + id);
-        System.out.println("Competency ID: " + dto.getId());
-        System.out.println("Level: " + dto.getLevel());
-
         User cand = userRepo.findById(id).orElse(null);
         if (cand == null) {
-            System.out.println("ERROR: User not found");
             return ResponseEntity.badRequest().body("User not found");
         }
 
         Competency comp = compRepo.findById(dto.getId()).orElse(null);
         if (comp == null) {
-            System.out.println("ERROR: Competency not found");
             return ResponseEntity.badRequest().body("Competency not found");
         }
 
         Optional<CandidateCompetency> existing = candCompRepo.findByCandidateAndCompetency(cand, comp);
         if (existing.isPresent()) {
-            System.out.println("UPDATING existing skill: old level=" + existing.get().getLevel() + ", new level=" + dto.getLevel());
             existing.get().setLevel(dto.getLevel());
-            CandidateCompetency saved = candCompRepo.save(existing.get());
-            System.out.println("SAVED: " + saved.getId() + ", level=" + saved.getLevel());
+            candCompRepo.save(existing.get());
         } else {
-            System.out.println("CREATING new skill");
-            CandidateCompetency saved = candCompRepo.save(new CandidateCompetency(null, cand, comp, dto.getLevel()));
-            System.out.println("SAVED: " + saved.getId() + ", level=" + saved.getLevel());
+            candCompRepo.save(new CandidateCompetency(null, cand, comp, dto.getLevel()));
         }
 
         return ResponseEntity.ok("Skill added");
     }
-    // GET /api/candidate/{id}/skills - получить сохранённые навыки пользователя
+
+    // GET /api/candidate/{id}/skills - получить сохранённые навыки
     @GetMapping("/candidate/{id}/skills")
     public ResponseEntity<?> getUserSkills(@PathVariable Long id) {
         List<CandidateCompetency> skills = candCompRepo.findByCandidateId(id);
@@ -143,22 +140,20 @@ public class AppController {
             CompetencyLevelDto dto = new CompetencyLevelDto();
             dto.setId(cc.getCompetency().getId());
             dto.setLevel(cc.getLevel());
-            // Остальные поля можно не задавать, они будут null
             result.add(dto);
         }
         return ResponseEntity.ok(result);
     }
-    // 4. Алгоритм подбора
+
+    // 4. Алгоритм подбора (с передачей компании кандидату)
     @GetMapping("/match/{candidateId}")
     @Transactional(readOnly = true)
     public ResponseEntity<?> findMatches(@PathVariable Long candidateId) {
-        // 1. Получаем профиль компетенций кандидата
         List<CandidateCompetency> skills = candCompRepo.findByCandidateId(candidateId);
         if (skills.isEmpty()) {
             return ResponseEntity.ok(new ArrayList<>());
         }
 
-        // Карта: ID компетенции -> Уровень кандидата
         Map<Long, Integer> candidateMap = new HashMap<>();
         for (CandidateCompetency s : skills) {
             candidateMap.put(s.getCompetency().getId(), s.getLevel());
@@ -176,29 +171,22 @@ public class AppController {
             boolean criticalFail = false;
             List<Map<String, Object>> breakdown = new ArrayList<>();
 
-            // 2. Расчёт по каждой компетенции вакансии
             for (VacancyCompetency req : v.getRequiredCompetencies()) {
                 Long compId = req.getCompetency().getId();
                 int candidateLevel = candidateMap.getOrDefault(compId, 0);
-                int requiredLevel = req.getRequiredLevel() > 0 ? req.getRequiredLevel() : 1; // Защита от деления на 0
+                int requiredLevel = req.getRequiredLevel() > 0 ? req.getRequiredLevel() : 1;
                 double weight = req.getWeight() != null ? req.getWeight() : 1.0;
 
-                // Параметры критической компетенции
                 boolean isCritical = Boolean.TRUE.equals(req.getIsCritical());
                 int minLevel = req.getMinRequiredLevel() != null ? req.getMinRequiredLevel() : 0;
 
-                // Проверка критического порога (п. 4.5 отчёта)
                 if (isCritical && candidateLevel < minLevel) {
                     criticalFail = true;
                 }
 
-                // Формула 4.3: ci = min(si / ri, 1)
                 double ci = Math.min((double) candidateLevel / requiredLevel, 1.0);
-
-                // Формула 4.4: R = Σ(wi * ci)
                 weightedScore += weight * ci;
 
-                // Формируем детализацию для Android
                 Map<String, Object> detail = new HashMap<>();
                 detail.put("competencyId", compId);
                 detail.put("competencyName", req.getCompetency().getName());
@@ -212,11 +200,9 @@ public class AppController {
                 breakdown.add(detail);
             }
 
-            // Если провалена критическая компетенция -> общий процент 0
             double finalScore = criticalFail ? 0.0 : weightedScore;
             int percent = (int) Math.round(finalScore * 100);
 
-            // Классификация (п. 4.5 отчёта)
             String matchLevel;
             if (criticalFail) {
                 matchLevel = "REJECTED";
@@ -233,13 +219,23 @@ public class AppController {
             r.put("id", v.getId());
             r.put("title", v.getTitle());
             r.put("description", v.getDescription());
-            r.put("matchPercentage", percent); // int безопаснее для JSON и сортировки
+            r.put("matchPercentage", percent);
             r.put("matchLevel", matchLevel);
             r.put("breakdown", breakdown);
+
+            // ✅ Добавляем компанию, если есть
+            if (v.getCompany() != null) {
+                Map<String, Object> companyData = new HashMap<>();
+                companyData.put("name", v.getCompany().getName());
+                companyData.put("industry", v.getCompany().getIndustry());
+                companyData.put("location", v.getCompany().getLocation());
+                r.put("company", companyData);
+            }
+
             result.add(r);
         }
 
-        // 3. Сортировка по убыванию процента (используем Integer.compare во избежание ClassCastException)
+        // Сортировка по убыванию процента
         result.sort((a, b) -> Integer.compare(
                 (Integer) b.get("matchPercentage"),
                 (Integer) a.get("matchPercentage")
@@ -247,7 +243,8 @@ public class AppController {
 
         return ResponseEntity.ok(result);
     }
-    // 2. Получить вакансии конкретного HR (Мои вакансии)
+
+    // 5. Получить вакансии конкретного HR
     @GetMapping("/hr/vacancies/{hrId}")
     public ResponseEntity<?> getMyVacancies(@PathVariable Long hrId) {
         List<Vacancy> myVacs = vacRepo.findByCreatedById(hrId);
@@ -257,12 +254,21 @@ public class AppController {
             m.put("id", v.getId());
             m.put("title", v.getTitle());
             m.put("description", v.getDescription());
+
+            // ✅ Добавляем компанию для списка "Мои вакансии"
+            if (v.getCompany() != null) {
+                Map<String, Object> companyData = new HashMap<>();
+                companyData.put("name", v.getCompany().getName());
+                companyData.put("industry", v.getCompany().getIndustry());
+                companyData.put("location", v.getCompany().getLocation());
+                m.put("company", companyData);
+            }
             safeList.add(m);
         }
         return ResponseEntity.ok(safeList);
     }
 
-    // 3. Удалить вакансию
+    // 6. Удалить вакансию
     @DeleteMapping("/hr/vacancies/{id}")
     public ResponseEntity<?> deleteVacancy(@PathVariable Long id) {
         if (vacRepo.existsById(id)) {
@@ -272,7 +278,7 @@ public class AppController {
         return ResponseEntity.notFound().build();
     }
 
-    // 4. Кандидат откликается на вакансию
+    // 7. Кандидат откликается на вакансию
     @PostMapping("/applications")
     public ResponseEntity<?> apply(@RequestBody ApplicationRequest req) {
         Vacancy v = vacRepo.findById(req.getVacancyId()).orElse(null);
@@ -290,7 +296,7 @@ public class AppController {
         return ResponseEntity.ok("Application sent successfully!");
     }
 
-    // 5. HR смотрит отклики на свою вакансию
+    // 8. HR смотрит отклики на свою вакансию
     @GetMapping("/hr/vacancies/{vacancyId}/applications")
     public ResponseEntity<?> getApplications(@PathVariable Long vacancyId) {
         List<Application> apps = appRepo.findByVacancyId(vacancyId);
@@ -308,6 +314,7 @@ public class AppController {
         return ResponseEntity.ok(result);
     }
 
+    // 9. Инициализация данных (компетенции с категориями)
     @PostConstruct
     public void init() {
         String[][] data = {
@@ -319,7 +326,6 @@ public class AppController {
         };
 
         for (String[] item : data) {
-            // Проверяем, нет ли уже такой компетенции по имени
             if (compRepo.findByName(item[0]).isEmpty()) {
                 Competency comp = new Competency();
                 comp.setName(item[0]);
@@ -330,13 +336,11 @@ public class AppController {
         }
     }
 
+    // 10. Получить все отклики на вакансии конкретного HR
     @GetMapping("/hr/{hrId}/applications")
     public ResponseEntity<?> getHRApplications(@PathVariable Long hrId) {
-        // Находим все вакансии этого HR
         List<Vacancy> myVacs = vacRepo.findByCreatedById(hrId);
         List<Long> vacancyIds = myVacs.stream().map(Vacancy::getId).toList();
-
-        // Находим все отклики на эти вакансии
         List<Application> allApps = appRepo.findByVacancyIdIn(vacancyIds);
 
         List<Map<String, Object>> result = new ArrayList<>();
@@ -344,7 +348,6 @@ public class AppController {
             User candidate = app.getCandidate();
             Vacancy vacancy = app.getVacancy();
 
-            // Получаем навыки кандидата
             List<CandidateCompetency> candidateSkills = candCompRepo.findByCandidateId(candidate.getId());
             List<Map<String, Object>> skills = new ArrayList<>();
             for (CandidateCompetency cc : candidateSkills) {
@@ -354,20 +357,17 @@ public class AppController {
                 skills.add(s);
             }
 
-            // Считаем процент соответствия (упрощённо)
             int matchPercent = calculateMatchPercent(candidateSkills, vacancy.getRequiredCompetencies());
 
             Map<String, Object> m = new HashMap<>();
             m.put("applicationId", app.getId());
             m.put("vacancyId", vacancy.getId());
             m.put("vacancyTitle", vacancy.getTitle());
-
             m.put("candidateId", candidate.getId());
             m.put("candidateName", candidate.getUsername());
             m.put("candidateEmail", candidate.getEmail());
             m.put("candidateSkills", skills);
             m.put("matchPercent", matchPercent);
-
             m.put("message", app.getMessage());
             m.put("status", app.getStatus());
             m.put("appliedAt", app.getAppliedAt());
@@ -397,7 +397,8 @@ public class AppController {
 
         return total > 0 ? (int) Math.round((score / total) * 100) : 0;
     }
-    // Обновить статус отклика
+
+    // 11. Обновить статус отклика
     @PatchMapping("/applications/{id}/status")
     public ResponseEntity<?> updateApplicationStatus(
             @PathVariable Long id,
