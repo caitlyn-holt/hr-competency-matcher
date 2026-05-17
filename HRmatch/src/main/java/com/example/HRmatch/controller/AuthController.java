@@ -122,10 +122,15 @@ public class AuthController {
     }
 
     // Обновить профиль
-    @PatchMapping("/users/{id}")
+    @PatchMapping("/users/{id}")  // ← PatchMapping, не PostMapping!
     public ResponseEntity<?> updateUserProfile(@PathVariable Long id, @RequestBody Map<String, String> updates) {
+        System.out.println("Update request for user " + id + ": " + updates);
+
         User user = userRepository.findById(id).orElse(null);
-        if (user == null) return ResponseEntity.notFound().build();
+        if (user == null) {
+            System.out.println("User not found");
+            return ResponseEntity.notFound().build();
+        }
 
         if (updates.containsKey("username")) user.setUsername(updates.get("username"));
         if (updates.containsKey("email")) user.setEmail(updates.get("email"));
@@ -139,6 +144,7 @@ public class AuthController {
             companyRepo.save(company);
         }
         userRepository.save(user);
+        System.out.println("User updated");
         return ResponseEntity.ok(user);
     }
 
