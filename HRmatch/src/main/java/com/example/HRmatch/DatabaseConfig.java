@@ -34,13 +34,21 @@ public class DatabaseConfig {
         HikariDataSource ds = new HikariDataSource();
 
         if (usePostgres) {
-            // Формат с параметрами + отключение проверки сертификата
-            String url = String.format(
-                    "jdbc:postgresql://%s:%d/%s?user=%s&password=%s&ssl=true&sslfactory=org.postgresql.ssl.NonValidatingFactory",
-                    dbHost, dbPort, dbName, dbUser, dbPassword
+            String jdbcUrl = String.format(
+                    "jdbc:postgresql://%s:%d/%s?ssl=true&sslmode=require&sslfactory=org.postgresql.ssl.NonValidatingFactory",
+                    dbHost, dbPort, dbName
             );
-            ds.setJdbcUrl(url);
+
+            ds.setJdbcUrl(jdbcUrl);
+            ds.setUsername(dbUser);
+            ds.setPassword(dbPassword);
             ds.setDriverClassName("org.postgresql.Driver");
+
+            // Оптимизация пула для Render Free tier
+            ds.setMaximumPoolSize(5);
+            ds.setMinimumIdle(1);
+            ds.setConnectionTimeout(30000);
+
         } else {
             // Локальная H2 база
             ds.setJdbcUrl("jdbc:h2:mem:testdb");
