@@ -30,8 +30,8 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role;
 
-    @Lob
-    @Column(name = "profile_photo")
+    @Column(name = "profile_photo", columnDefinition = "bytea")
+    @Basic(fetch = FetchType.LAZY)
     private byte[] profilePhoto;
     public byte[] getProfilePhoto() { return profilePhoto; }
     public void setProfilePhoto(byte[] profilePhoto) { this.profilePhoto = profilePhoto; }
