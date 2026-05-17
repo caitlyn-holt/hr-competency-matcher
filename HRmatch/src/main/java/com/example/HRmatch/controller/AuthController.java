@@ -55,7 +55,9 @@ public class AuthController {
             Role role = Role.valueOf(roleStr.toUpperCase());
 
             if (userRepository.findByUsername(username).isPresent()) {
-                return ResponseEntity.badRequest().body("Username already exists");
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Username already exists");
+                return ResponseEntity.badRequest().body(error);
             }
 
             User user = new User();
@@ -86,16 +88,24 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody @Valid LoginRequest request, BindingResult result) {
         if (result.hasErrors()) {
-            return ResponseEntity.badRequest().body(result.getAllErrors());
+            Map<String, String> errors = new HashMap<>();
+            result.getAllErrors().forEach(err ->
+                    errors.put(err.getDefaultMessage(), err.getDefaultMessage()));
+            return ResponseEntity.badRequest().body(errors); // ✅ JSON, не строка!
         }
+
         Optional<User> userOpt = userRepository.findByUsername(request.getUsername());
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             if (passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-                return ResponseEntity.ok(user);
+                return ResponseEntity.ok(user); // ✅ Объект User
             }
         }
-        return ResponseEntity.status(401).body("Invalid credentials");
+
+        // ✅ Возвращаем JSON с ошибкой, не строку!
+        Map<String, String> error = new HashMap<>();
+        error.put("error", "Invalid credentials");
+        return ResponseEntity.status(401).body(error);
     }
 
     // Получить профиль
