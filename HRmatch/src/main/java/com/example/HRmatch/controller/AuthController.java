@@ -13,25 +13,27 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api")
 public class AuthController {
+
     private final UserRepository userRepository;
     private final CompanyRepository companyRepo;
     private final PasswordEncoder passwordEncoder;
 
     public AuthController(UserRepository userRepository, CompanyRepository companyRepo) {
-        this.userRepository = userRepository;
+        this.userRepository = userRepository;  // ← Правильное имя!
         this.companyRepo = companyRepo;
         this.passwordEncoder = new BCryptPasswordEncoder();
     }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody @Valid RegisterRequest request, BindingResult result) {
-        // Проверка валидации
         if (result.hasErrors()) {
             return ResponseEntity.badRequest().body(result.getAllErrors());
         }
@@ -42,7 +44,6 @@ public class AuthController {
             String roleStr = request.getRole();
             Role role = Role.valueOf(roleStr.toUpperCase());
 
-            // Проверка на существующего пользователя
             if (userRepository.findByUsername(username).isPresent()) {
                 return ResponseEntity.badRequest().body("Username already exists");
             }
@@ -53,7 +54,6 @@ public class AuthController {
             user.setRole(role);
             user.setPassword(passwordEncoder.encode(password));
 
-            // Если это HR — создаём компанию
             if (role == Role.HR) {
                 Company company = new Company();
                 company.setName(request.getCompanyName() != null ? request.getCompanyName() : "Не указана");
@@ -90,5 +90,59 @@ public class AuthController {
             }
         }
         return ResponseEntity.status(401).body("Invalid credentials");
+    }
+
+    @GetMapping("/users/{id}")
+    public ResponseEntity<?> getUserProfile(@PathVariable Long id) {
+        User user = userRepository.findById(id).orElse(null);  // ← userRepository, не userRepo!
+        if (user == null) return ResponseEntity.notFound().build();
+
+        Map<String, Object> profile = new HashMap<>();
+        profile.put("id", user.getId());
+        profile.put("username", user.getUsername());
+        profile.put("email", user.getEmail());
+        profile.put("role", user.getRole());
+
+        // Если это HR — добавляем данные компании
+        if (user.getRole() == Role.HR && user.getCompany() != null) {
+            Map<String, String> company = new HashMap<>();
+            company.put("name", user.getCompany().getName());
+            company.put("industry", user.getCompany().getIndustry());
+            company.put("location", user.getCompany().getLocation());
+            company.put("description", user.getCompany().getDescription());
+            profile.put("company", company);
+        }
+
+        return ResponseEntity.ok(profile);
+    }
+
+    @PatchMapping("/users/{id}")
+    public ResponseEntity<?> updateUserProfile(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> updates) {
+
+        User user = userRepository.findById(id).orElse(null);  // ← userRepository!
+        if (user == null) return ResponseEntity.notFound().build();
+
+        // Обновляем базовые поля
+        if (updates.containsKey("username")) {
+            user.setUsername(updates.get("username"));
+        }
+        if (updates.containsKey("email")) {
+            user.setEmail(updates.get("email"));
+        }
+
+        // Если это HR и есть данные компании — обновляем компанию
+        if (user.getRole() == Role.HR && user.getCompany() != null) {
+            Company company = user.getCompany();
+            if (updates.containsKey("companyName")) company.setName(updates.get("companyName"));
+            if (updates.containsKey("companyIndustry")) company.setIndustry(updates.get("companyIndustry"));
+            if (updates.containsKey("companyLocation")) company.setLocation(updates.get("companyLocation"));
+            if (updates.containsKey("companyDescription")) company.setDescription(updates.get("companyDescription"));
+            companyRepo.save(company);
+        }
+
+        userRepository.save(user);  // ← userRepository!
+        return ResponseEntity.ok(user);
     }
 }
