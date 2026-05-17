@@ -7,4 +7,5 @@ import java.util.List;
 public interface ApplicationRepository extends JpaRepository<Application, Long> {
     List<Application> findByVacancyId(Long vacancyId);
     List<Application> findByVacancyIdIn(List<Long> vacancyIds);
+    void deleteByVacancyId(Long vacancyId);
 }

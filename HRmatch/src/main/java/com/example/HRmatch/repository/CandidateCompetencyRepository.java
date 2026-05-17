@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface CandidateCompetencyRepository extends JpaRepository<CandidateCompetency, Long> {
     List<CandidateCompetency> findByCandidateId(Long candidateId);
     Optional<CandidateCompetency> findByCandidateAndCompetency(User candidate, Competency competency);
+    void deleteByCandidateId(Long candidateId);
 }

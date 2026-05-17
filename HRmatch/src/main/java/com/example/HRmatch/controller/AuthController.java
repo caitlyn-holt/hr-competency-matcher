@@ -5,16 +5,19 @@ import com.example.HRmatch.RegisterRequest;
 import com.example.HRmatch.entity.Company;
 import com.example.HRmatch.entity.Role;
 import com.example.HRmatch.entity.User;
-import com.example.HRmatch.repository.CompanyRepository;
-import com.example.HRmatch.repository.UserRepository;
+import com.example.HRmatch.repository.*;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -24,11 +27,19 @@ public class AuthController {
 
     private final UserRepository userRepository;
     private final CompanyRepository companyRepo;
+    private final VacancyRepository vacRepo;
+    private final ApplicationRepository appRepo;
+    private final CandidateCompetencyRepository candCompRepo;
     private final PasswordEncoder passwordEncoder;
 
-    public AuthController(UserRepository userRepository, CompanyRepository companyRepo) {
-        this.userRepository = userRepository;  // ← Правильное имя!
+    public AuthController(UserRepository userRepository, CompanyRepository companyRepo,
+                          VacancyRepository vacRepo, ApplicationRepository appRepo,
+                          CandidateCompetencyRepository candCompRepo) {
+        this.userRepository = userRepository;
         this.companyRepo = companyRepo;
+        this.vacRepo = vacRepo;
+        this.appRepo = appRepo;
+        this.candCompRepo = candCompRepo;
         this.passwordEncoder = new BCryptPasswordEncoder();
     }
 
@@ -37,7 +48,6 @@ public class AuthController {
         if (result.hasErrors()) {
             return ResponseEntity.badRequest().body(result.getAllErrors());
         }
-
         try {
             String username = request.getUsername();
             String password = request.getPassword();
@@ -60,14 +70,12 @@ public class AuthController {
                 company.setIndustry(request.getCompanyIndustry());
                 company.setLocation(request.getCompanyLocation());
                 company.setDescription(request.getCompanyDescription());
-
                 companyRepo.save(company);
                 user.setCompany(company);
             }
 
             userRepository.save(user);
             return ResponseEntity.ok(user);
-
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body("Invalid role: " + request.getRole());
         } catch (Exception e) {
@@ -80,9 +88,7 @@ public class AuthController {
         if (result.hasErrors()) {
             return ResponseEntity.badRequest().body(result.getAllErrors());
         }
-
         Optional<User> userOpt = userRepository.findByUsername(request.getUsername());
-
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             if (passwordEncoder.matches(request.getPassword(), user.getPassword())) {
@@ -92,9 +98,10 @@ public class AuthController {
         return ResponseEntity.status(401).body("Invalid credentials");
     }
 
+    // Получить профиль
     @GetMapping("/users/{id}")
     public ResponseEntity<?> getUserProfile(@PathVariable Long id) {
-        User user = userRepository.findById(id).orElse(null);  // ← userRepository, не userRepo!
+        User user = userRepository.findById(id).orElse(null);
         if (user == null) return ResponseEntity.notFound().build();
 
         Map<String, Object> profile = new HashMap<>();
@@ -103,7 +110,6 @@ public class AuthController {
         profile.put("email", user.getEmail());
         profile.put("role", user.getRole());
 
-        // Если это HR — добавляем данные компании
         if (user.getRole() == Role.HR && user.getCompany() != null) {
             Map<String, String> company = new HashMap<>();
             company.put("name", user.getCompany().getName());
@@ -112,27 +118,18 @@ public class AuthController {
             company.put("description", user.getCompany().getDescription());
             profile.put("company", company);
         }
-
         return ResponseEntity.ok(profile);
     }
 
+    // Обновить профиль
     @PatchMapping("/users/{id}")
-    public ResponseEntity<?> updateUserProfile(
-            @PathVariable Long id,
-            @RequestBody Map<String, String> updates) {
-
-        User user = userRepository.findById(id).orElse(null);  // ← userRepository!
+    public ResponseEntity<?> updateUserProfile(@PathVariable Long id, @RequestBody Map<String, String> updates) {
+        User user = userRepository.findById(id).orElse(null);
         if (user == null) return ResponseEntity.notFound().build();
 
-        // Обновляем базовые поля
-        if (updates.containsKey("username")) {
-            user.setUsername(updates.get("username"));
-        }
-        if (updates.containsKey("email")) {
-            user.setEmail(updates.get("email"));
-        }
+        if (updates.containsKey("username")) user.setUsername(updates.get("username"));
+        if (updates.containsKey("email")) user.setEmail(updates.get("email"));
 
-        // Если это HR и есть данные компании — обновляем компанию
         if (user.getRole() == Role.HR && user.getCompany() != null) {
             Company company = user.getCompany();
             if (updates.containsKey("companyName")) company.setName(updates.get("companyName"));
@@ -141,8 +138,43 @@ public class AuthController {
             if (updates.containsKey("companyDescription")) company.setDescription(updates.get("companyDescription"));
             companyRepo.save(company);
         }
-
-        userRepository.save(user);  // ← userRepository!
+        userRepository.save(user);
         return ResponseEntity.ok(user);
+    }
+
+    // Загрузить фото профиля
+    @PatchMapping(value = "/users/{id}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> uploadPhoto(@PathVariable Long id, @RequestParam("photo") MultipartFile file) {
+        User user = userRepository.findById(id).orElse(null);
+        if (user == null) return ResponseEntity.notFound().build();
+        try {
+            user.setProfilePhoto(file.getBytes());
+            userRepository.save(user);
+            return ResponseEntity.ok("Photo uploaded successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error uploading photo: " + e.getMessage());
+        }
+    }
+
+    // Удалить аккаунт (каскадная очистка)
+    @DeleteMapping("/users/{id}")
+    @Transactional
+    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+        User user = userRepository.findById(id).orElse(null);
+        if (user == null) return ResponseEntity.notFound().build();
+
+        if (user.getRole() == Role.HR) {
+            List<?> vacancies = vacRepo.findByCreatedById(id);
+            for (Object vObj : vacancies) {
+                if (vObj instanceof com.example.HRmatch.entity.Vacancy) {
+                    com.example.HRmatch.entity.Vacancy v = (com.example.HRmatch.entity.Vacancy) vObj;
+                    appRepo.deleteByVacancyId(v.getId());
+                    vacRepo.delete(v);
+                }
+            }
+        }
+        candCompRepo.deleteByCandidateId(id);
+        userRepository.delete(user);
+        return ResponseEntity.ok("Account deleted successfully");
     }
 }
