@@ -305,21 +305,158 @@ public class AppController {
     @PostConstruct
     public void init() {
         String[][] data = {
-                {"Java", "IT"}, {"Python", "IT"}, {"SQL", "IT"}, {"Docker", "IT"}, {"Git", "IT"},
-                {"Project Management", "Management"}, {"Agile", "Management"}, {"Leadership", "Management"},
-                {"Recruitment", "HR"}, {"Interviewing", "HR"}, {"HR Branding", "HR"},
-                {"B2B Sales", "Sales"}, {"Negotiation", "Sales"}, {"CRM", "Sales"},
-                {"Figma", "Design"}, {"UI/UX", "Design"}, {"Photoshop", "Design"}
+                // ===== IT & Разработка =====
+                {"1C:Предприятие", "IT"},
+                {"1C:Бухгалтерия", "IT"},
+                {"Bitrix", "IT"},
+                {"JavaScript", "IT"},
+                {"TypeScript", "IT"},
+                {"React", "IT"},
+                {"Vue.js", "IT"},
+                {"Angular", "IT"},
+                {"Node.js", "IT"},
+                {"Spring Boot", "IT"},
+                {"Django", "IT"},
+                {"Flask", "IT"},
+                {"C#", "IT"},
+                {"C++", "IT"},
+                {".NET", "IT"},
+                {"PHP", "IT"},
+                {"Laravel", "IT"},
+                {"Kotlin", "IT"},
+                {"Swift", "IT"},
+                {"PostgreSQL", "IT"},
+                {"MySQL", "IT"},
+                {"MongoDB", "IT"},
+                {"Redis", "IT"},
+                {"Docker", "IT"},
+                {"Kubernetes", "IT"},
+                {"Jenkins", "IT"},
+                {"CI/CD", "IT"},
+                {"Linux", "IT"},
+                {"Бизнес-анализ", "IT"},
+                {"Системный анализ", "IT"},
+                {"QA Manual", "IT"},
+                {"QA Auto", "IT"},
+                {"Selenium", "IT"},
+                {"DevOps", "IT"},
+                {"Terraform", "IT"},
+                {"Ansible", "IT"},
+                {"Yandex Cloud", "IT"},
+                {"VK Cloud", "IT"},
+                {"Кибербезопасность", "IT"},
+                {"Информационная безопасность", "IT"},
+
+                // ===== Data & AI =====
+                {"Анализ данных", "Data"},
+                {"Python (Data)", "Data"},
+                {"Pandas", "Data"},
+                {"NumPy", "Data"},
+                {"Machine Learning", "Data"},
+                {"TensorFlow", "Data"},
+                {"PyTorch", "Data"},
+                {"SQL (Advanced)", "Data"},
+                {"Data Visualization", "Data"},
+                {"Power BI", "Data"},
+                {"Tableau", "Data"},
+
+                // ===== Менеджмент =====
+                {"Стратегическое планирование", "Management"},
+                {"Управление рисками", "Management"},
+                {"Change Management", "Management"},
+                {"Scrum Master", "Management"},
+                {"Product Owner", "Management"},
+                {"OKR/KPI", "Management"},
+                {"Бюджетирование", "Management"},
+                {"Финансовое планирование", "Management"},
+                {"Построение команды", "Management"},
+                {"Управление удалённой командой", "Management"},
+                {"Agile", "Management"},
+                {"Kanban", "Management"},
+
+                // ===== HR & Рекрутинг =====
+                {"Talent Acquisition", "HR"},
+                {"Employer Branding", "HR"},
+                {"HR-аналитика", "HR"},
+                {"Onboarding/Offboarding", "HR"},
+                {"Performance Management", "HR"},
+                {"C&B (Compensation & Benefits)", "HR"},
+                {"ТК РФ (Трудовой кодекс)", "HR"},
+                {"HRIS-системы", "HR"},
+                {"Интервью по компетенциям", "HR"},
+                {"Assessment Center", "HR"},
+
+                // ===== Продажи & Маркетинг =====
+                {"Digital Marketing", "Sales"},
+                {"SEO/SEM", "Sales"},
+                {"SMM", "Sales"},
+                {"Контент-маркетинг", "Sales"},
+                {"Email-маркетинг", "Sales"},
+                {"Яндекс.Метрика", "Sales"},
+                {"Google Analytics", "Sales"},
+                {"Bitrix24", "Sales"},
+                {"amoCRM", "Sales"},
+                {"B2B-продажи", "Sales"},
+                {"B2C-продажи", "Sales"},
+                {"Key Account Management", "Sales"},
+                {"Холодные звонки", "Sales"},
+                {"Маркетинговые исследования", "Sales"},
+
+                // ===== Дизайн & Креатив =====
+                {"Adobe Photoshop", "Design"},
+                {"Adobe Illustrator", "Design"},
+                {"Figma", "Design"},
+                {"Adobe After Effects", "Design"},
+                {"Motion Design", "Design"},
+                {"3D-моделирование", "Design"},
+                {"Blender", "Design"},
+                {"Видеомонтаж", "Design"},
+                {"Копирайтинг", "Design"},
+                {"UX-исследования", "Design"},
+                {"UI/UX", "Design"},
+
+                // ===== Финансы & Бухгалтерия =====
+                {"1С:Бухгалтерия", "Finance"},
+                {"РСБУ", "Finance"},
+                {"МСФО", "Finance"},
+                {"Налоговое планирование", "Finance"},
+                {"Аудит", "Finance"},
+                {"Финансовый анализ", "Finance"},
+                {"Управленческий учёт", "Finance"},
+
+                // ===== Производство & Логистика =====
+                {"Бережливое производство", "Engineering"},
+                {"Six Sigma", "Engineering"},
+                {"Контроль качества", "Engineering"},
+                {"Управление цепями поставок", "Engineering"},
+                {"Логистика", "Engineering"},
+                {"AutoCAD", "Engineering"},
+                {"Компас-3D", "Engineering"},
+
+                // ===== Клиентский сервис =====
+                {"Клиентская поддержка", "Service"},
+                {"Разрешение конфликтов", "Service"},
+                {"Управление колл-центром", "Service"},
+                {"Работа с возражениями", "Service"},
+
+                // ===== Юриспруденция =====
+                {"Договорное право РФ", "Legal"},
+                {"Корпоративное право", "Legal"},
+                {"Комплаенс", "Legal"},
+                {"Юридическое сопровождение", "Legal"}
         };
+
         for (String[] item : data) {
             if (compRepo.findByName(item[0]).isEmpty()) {
                 Competency comp = new Competency();
                 comp.setName(item[0]);
                 comp.setCategory(item[1]);
                 compRepo.save(comp);
-                System.out.println("Added: " + item[0]);
+                System.out.println("✅ Added: " + item[0] + " [" + item[1] + "]");
             }
         }
+
+        System.out.println("🎯 Total competencies in DB: " + compRepo.count());
     }
 
     // 10. Получить все отклики на вакансии конкретного HR
