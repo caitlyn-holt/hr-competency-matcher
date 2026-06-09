@@ -33,13 +33,11 @@ public class AppController {
         this.companyRepo = companyRepo;
     }
 
-    // 1. Список компетенций
     @GetMapping("/competencies")
     public ResponseEntity<?> getCompetencies() {
         return ResponseEntity.ok(compRepo.findAll());
     }
 
-    // 2. Создание вакансии
     @PostMapping("/vacancies")
     public ResponseEntity<?> createVacancy(@RequestBody CreateVacancyRequest req) {
         if (req.getCreatedById() == null) {
@@ -56,7 +54,6 @@ public class AppController {
         v.setDescription(req.getDescription());
         v.setCreatedBy(hr);
 
-        // ✅ ПРИВЯЗЫВАЕМ КОМПАНИЮ К ВАКАНСИИ
         if (hr.getCompany() != null) {
             v.setCompany(hr.getCompany());
         }
@@ -102,7 +99,6 @@ public class AppController {
         return ResponseEntity.ok(v);
     }
 
-    // 3. Добавление навыка кандидату
     @PostMapping("/candidate/{id}/skills")
     public ResponseEntity<?> addSkill(@PathVariable Long id, @RequestBody CompetencyLevelDto dto) {
         User cand = userRepo.findById(id).orElse(null);
@@ -139,7 +135,6 @@ public class AppController {
         return ResponseEntity.ok(result);
     }
 
-    // 4. Алгоритм подбора (с передачей компании кандидату)
     @GetMapping("/match/{candidateId}")
     @Transactional(readOnly = true)
     public ResponseEntity<?> findMatches(@PathVariable Long candidateId) {
@@ -216,7 +211,6 @@ public class AppController {
             r.put("matchLevel", matchLevel);
             r.put("breakdown", breakdown);
 
-            // ✅ Добавляем компанию в ответ
             if (v.getCompany() != null) {
                 Map<String, Object> companyData = new HashMap<>();
                 companyData.put("name", v.getCompany().getName());
@@ -235,7 +229,6 @@ public class AppController {
         return ResponseEntity.ok(result);
     }
 
-    // 5. Получить вакансии конкретного HR
     @GetMapping("/hr/vacancies/{hrId}")
     public ResponseEntity<?> getMyVacancies(@PathVariable Long hrId) {
         List<Vacancy> myVacs = vacRepo.findByCreatedById(hrId);
@@ -258,7 +251,6 @@ public class AppController {
         return ResponseEntity.ok(safeList);
     }
 
-    // 6. Удалить вакансию
     @DeleteMapping("/hr/vacancies/{id}")
     public ResponseEntity<?> deleteVacancy(@PathVariable Long id) {
         if (vacRepo.existsById(id)) {
@@ -268,7 +260,6 @@ public class AppController {
         return ResponseEntity.notFound().build();
     }
 
-    // 7. Кандидат откликается на вакансию
     @PostMapping("/applications")
     public ResponseEntity<?> apply(@RequestBody ApplicationRequest req) {
         Vacancy v = vacRepo.findById(req.getVacancyId()).orElse(null);
@@ -284,7 +275,6 @@ public class AppController {
         return ResponseEntity.ok("Application sent successfully!");
     }
 
-    // 8. HR смотрит отклики на свою вакансию
     @GetMapping("/hr/vacancies/{vacancyId}/applications")
     public ResponseEntity<?> getApplications(@PathVariable Long vacancyId) {
         List<Application> apps = appRepo.findByVacancyId(vacancyId);
@@ -301,7 +291,6 @@ public class AppController {
         return ResponseEntity.ok(result);
     }
 
-    // 9. Инициализация данных
     @PostConstruct
     public void init() {
         String[][] data = {
@@ -444,14 +433,13 @@ public class AppController {
                 comp.setName(item[0]);
                 comp.setCategory(item[1]);
                 compRepo.save(comp);
-                System.out.println("✅ Added: " + item[0] + " [" + item[1] + "]");
+                System.out.println("Added: " + item[0] + " [" + item[1] + "]");
             }
         }
 
-        System.out.println("🎯 Total competencies in DB: " + compRepo.count());
+        System.out.println("Total competencies in DB: " + compRepo.count());
     }
 
-    // 10. Получить все отклики на вакансии конкретного HR
     @GetMapping("/hr/{hrId}/applications")
     public ResponseEntity<?> getHRApplications(@PathVariable Long hrId) {
         List<Vacancy> myVacs = vacRepo.findByCreatedById(hrId);
@@ -508,7 +496,6 @@ public class AppController {
         return total > 0 ? (int) Math.round((score / total) * 100) : 0;
     }
 
-    // 11. Обновить статус отклика
     @PatchMapping("/applications/{id}/status")
     public ResponseEntity<?> updateApplicationStatus(@PathVariable Long id, @RequestBody Map<String, String> request) {
         Application app = appRepo.findById(id).orElse(null);

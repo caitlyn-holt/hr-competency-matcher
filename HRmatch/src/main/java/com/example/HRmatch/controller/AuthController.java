@@ -91,24 +91,22 @@ public class AuthController {
             Map<String, String> errors = new HashMap<>();
             result.getAllErrors().forEach(err ->
                     errors.put(err.getDefaultMessage(), err.getDefaultMessage()));
-            return ResponseEntity.badRequest().body(errors); // ✅ JSON, не строка!
+            return ResponseEntity.badRequest().body(errors);
         }
 
         Optional<User> userOpt = userRepository.findByUsername(request.getUsername());
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             if (passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-                return ResponseEntity.ok(user); // ✅ Объект User
+                return ResponseEntity.ok(user);
             }
         }
 
-        // ✅ Возвращаем JSON с ошибкой, не строку!
         Map<String, String> error = new HashMap<>();
         error.put("error", "Invalid credentials");
         return ResponseEntity.status(401).body(error);
     }
 
-    // Получить профиль
     @GetMapping("/users/{id}")
     public ResponseEntity<?> getUserProfile(@PathVariable Long id) {
         User user = userRepository.findById(id).orElse(null);
@@ -132,7 +130,7 @@ public class AuthController {
     }
 
     // Обновить профиль
-    @PatchMapping("/users/{id}")  // ← PatchMapping, не PostMapping!
+    @PatchMapping("/users/{id}")
     public ResponseEntity<?> updateUserProfile(@PathVariable Long id, @RequestBody Map<String, String> updates) {
         System.out.println("Update request for user " + id + ": " + updates);
 
